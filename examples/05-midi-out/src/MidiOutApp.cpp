@@ -29,9 +29,9 @@ lv_group_t* s_group = nullptr;   // what the encoder walks
 uint32_t s_shown = 0;            // the last message the label shows
 // [/docs:state]
 
+// [docs:timer]
 const char* const kNote[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
 
-// [docs:timer]
 // The pad task packed the last message into an atomic; this draws it.
 void tick(lv_timer_t*)
 {

@@ -6,9 +6,12 @@
 
 using namespace example_midi;
 
+// [docs:pack]
 namespace {
+// What the screen is told: status<<16 | data1<<8 | data2.
 uint32_t pack(uint8_t status, uint8_t d1, uint8_t d2) { return (uint32_t(status) << 16) | (uint32_t(d1) << 8) | d2; }
 }
+// [/docs:pack]
 
 void MidiOutPadLogic::onActivate(crosspad::PadManager& pm)
 {
@@ -33,10 +36,13 @@ void MidiOutPadLogic::onDeactivate(crosspad::PadManager& pm)
 void MidiOutPadLogic::onPadPress(crosspad::PadManager& pm, uint8_t pad, uint8_t velocity)
 {
     if (pad >= 16) return;
+    const uint16_t bit = uint16_t(1u << pad);
     const uint8_t ch = channel.load(), vel = velocity ? velocity : 1;   // velocity 0 would read as a Note Off
-    crosspad::getMidiOutput().sendNoteOn(noteFor(pad), vel, ch);
+    if (held_.load() & bit) endNote(pad);   // pressed again without a release: end the old note first
+    // Record the note before sending it, so a deactivate in between still ends it.
     noteChannel_[pad].store(ch);   // the release goes to this channel, even if the screen changed it since
-    held_.fetch_or(uint16_t(1u << pad));
+    held_.fetch_or(bit);
+    crosspad::getMidiOutput().sendNoteOn(noteFor(pad), vel, ch);
     pm.setPadColor(pad, 0, 220, 160);
     lastMessage.store(pack(0x90 | ch, noteFor(pad), vel));
 }
@@ -54,7 +60,9 @@ void MidiOutPadLogic::endNote(uint8_t pad)
 {
     const uint8_t ch = noteChannel_[pad].load();
     crosspad::getMidiOutput().sendNoteOff(noteFor(pad), 0, ch);
-    crosspad::getMidiOutput().sendPitchBend(0, ch);   // a bend ends with its note
+    // Bend and CC are channel-wide, not per note: this example resets the bend on
+    // every release and leaves CC 1 where it was, which suits one pad at a time.
+    crosspad::getMidiOutput().sendPitchBend(0, ch);
     lastMessage.store(pack(0x80 | ch, noteFor(pad), 0));
 }
 // [/docs:notes]
@@ -62,7 +70,7 @@ void MidiOutPadLogic::endNote(uint8_t pad)
 // [docs:expression]
 void MidiOutPadLogic::onPadPressure(crosspad::PadManager&, uint8_t pad, uint8_t pressure)
 {
-    if (pad >= 16) return;
+    if (pad >= 16 || !(held_.load() & (1u << pad))) return;   // a late event after the release: say nothing
     const uint8_t ch = noteChannel_[pad].load();   // expression follows the note it belongs to
     crosspad::getMidiOutput().sendControlChange(kPressureCc, pressure, ch);
     lastMessage.store(pack(0xB0 | ch, kPressureCc, pressure));
@@ -70,7 +78,7 @@ void MidiOutPadLogic::onPadPressure(crosspad::PadManager&, uint8_t pad, uint8_t 
 
 void MidiOutPadLogic::onPadPan(crosspad::PadManager&, uint8_t pad, int8_t pan)
 {
-    if (pad >= 16) return;
+    if (pad >= 16 || !(held_.load() & (1u << pad))) return;   // a bend after the release would detune the synth
     const uint8_t ch = noteChannel_[pad].load();
     const int16_t bend = panToBend(pan);
     crosspad::getMidiOutput().sendPitchBend(bend, ch);   // signed: 0 is centre

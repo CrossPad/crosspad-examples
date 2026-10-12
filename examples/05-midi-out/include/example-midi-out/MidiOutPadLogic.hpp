@@ -19,9 +19,11 @@ public:
     std::atomic<uint8_t> channel{0};        // 0..15, set by the screen
     std::atomic<uint32_t> lastMessage{0};   // status<<16 | data1<<8 | data2, for the screen
 
+    // [docs:held]
 private:
     void endNote(uint8_t pad);              // Note Off and bend reset, on the channel the note started on
 
     std::atomic<uint16_t> held_{0};         // bit n set = pad n has a Note On out
     std::atomic<uint8_t> noteChannel_[16]{};
+    // [/docs:held]
 };
