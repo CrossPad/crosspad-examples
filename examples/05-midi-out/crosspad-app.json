@@ -1,0 +1,17 @@
+{
+  "name": "MIDI Out",
+  "id": "example-midi-out",
+  "version": "0.1.0",
+  "description": "The pads as a MIDI controller: notes, pressure as CC 1, a pad rocked left or right as pitch bend.",
+  "category": "example",
+  "icon": "example-midi-out.png",
+  "component_path": "components/crosspad-example-midi-out",
+  "platforms": ["esp-idf", "pc"],
+  "requires": {
+    "crosspad-core": ">=1.53.0",
+    "crosspad-gui": ">=1.23.0"
+  },
+  "changelog": [
+    "0.1.0: first version"
+  ]
+}
