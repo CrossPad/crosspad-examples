@@ -1,0 +1,17 @@
+{
+  "name": "Motion",
+  "id": "example-motion",
+  "version": "0.1.0",
+  "description": "Tilt the CrossPad to send MIDI CC 74, tap it to feel it tap back, and watch a spirit level follow the sensor.",
+  "category": "example",
+  "icon": "example-motion.png",
+  "component_path": "components/crosspad-example-motion",
+  "platforms": ["esp-idf", "pc"],
+  "requires": {
+    "crosspad-core": ">=1.53.0",
+    "crosspad-gui": ">=1.23.0"
+  },
+  "changelog": [
+    "0.1.0: first version"
+  ]
+}
