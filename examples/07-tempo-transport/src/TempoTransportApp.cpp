@@ -15,6 +15,7 @@
 #include "crosspad/pad/PadManager.hpp"
 #include "crosspad/platform/IClock.hpp"
 #include "crosspad-gui/components/transport_bar.h"
+#include "crosspad-gui/components/ui_toast.h"
 #include <atomic>
 
 /*
@@ -24,22 +25,45 @@
  */
 namespace {
 
+// [docs:clock]
+// 0 from bpm() means "no tempo of its own": the bar would show "--" and grey
+// out its BPM key. The beat runs on the clock's tempo, so report that.
+struct ClockBlink : example_tempo::BlinkTarget {
+    float bpm() const override { return crosspad::transportTempo(); }
+};
+// [/docs:clock]
+
 // [docs:state]
-example_tempo::BlinkTarget s_target;               // what PLAY and STOP reach while we hold the claim
-example_tempo::TapTempo s_tap;                     // the taps so far
-std::atomic<float> s_lastChange{0.0f};            // the last TempoChanged, written on the event task
-crosspad::SubscriptionHandle s_sub = nullptr;      // our TempoChanged subscription
-lv_timer_t* s_timer = nullptr;                     // paints the labels and the pads
-lv_group_t* s_group = nullptr;                     // what the encoder walks
+ClockBlink s_target;                           // what PLAY and STOP reach while we hold the claim
+example_tempo::TapTempo s_tap;                 // the taps so far
+std::atomic<float> s_lastChange{0.0f};         // the last TempoChanged, written on the event task
+crosspad::SubscriptionHandle s_sub = nullptr;  // our TempoChanged subscription
+lv_timer_t* s_timer = nullptr;                 // paints the labels and the pads
+lv_group_t* s_group = nullptr;                 // what the encoder walks
 lv_obj_t* s_bpm = nullptr;
 lv_obj_t* s_beat = nullptr;
 lv_obj_t* s_from = nullptr;
-uint32_t s_playStartMs = 0;                        // when this PLAY began
+uint32_t s_playStartMs = 0;                    // when this PLAY began
 bool s_wasPlaying = false;
-int s_shownBeat = -2;                              // -2: nothing painted yet, -1: stopped
+int s_shownBeat = -2;                          // -2: nothing painted yet, -1: stopped
 // [/docs:state]
 
+// [docs:helpers]
 uint32_t now_ms() { return static_cast<uint32_t>(crosspad::getClock().getTimeUs() / 1000); }
+
+// Another app's claim stops our target and takes PLAY: this screen is then idle.
+bool holds_transport() { return crosspad::transportTarget() == &s_target; }
+
+// Lights pad @p beat (0..3) and dims the others; -1 dims all four.
+void light_beat(int beat)
+{
+    auto& pads = crosspad::getPadManager();
+    for (uint8_t p = 0; p < 4; ++p) {
+        if (p == beat) pads.setPadColor(p, 255, 200, 40);
+        else           pads.setPadColor(p, 30, 22, 4);
+    }
+}
+// [/docs:helpers]
 
 // [docs:subscribe]
 // Runs on the event task, and the data lives only during this call:
@@ -53,23 +77,17 @@ void on_tempo(const void* data, crosspad::EventType, void*)
 // [docs:tap]
 void on_tap(lv_event_t*)
 {
+    if (crosspad::transportTempoFromHost()) {   // a host's MIDI clock would undo the edit
+        ui_toast_show("Tempo follows the host's MIDI clock");
+        return;
+    }
     const float bpm = s_tap.tap(now_ms());
-    if (bpm <= 0.0f) return;                        // the first tap only starts the count
-    if (crosspad::transportTempoFromHost()) return; // a host's MIDI clock would undo it
-    crosspad::transportSetTempo(bpm);               // heard at once
-    crosspad::transportCommitTempo();               // the edit is done: an open song takes it too
+    if (bpm <= 0.0f) return;                    // the first tap only starts the count
+    crosspad::transportSetTempo(bpm);           // heard at once
+    crosspad::transportCommitTempo();           // the edit is done: an open song takes it too
     crosspad_gui::transportbar_refresh();
 }
 // [/docs:tap]
-
-void light_beat(int beat)
-{
-    auto& pads = crosspad::getPadManager();
-    for (uint8_t p = 0; p < 4; ++p) {
-        if (p == beat) pads.setPadColor(p, 255, 200, 40);
-        else           pads.setPadColor(p, 30, 22, 4);
-    }
-}
 
 // [docs:timer]
 void tick(lv_timer_t*)
@@ -77,15 +95,30 @@ void tick(lv_timer_t*)
     const float bpm = crosspad::transportTempo();
     if (bpm > 0.0f) lv_label_set_text_fmt(s_bpm, "%d BPM", static_cast<int>(bpm + 0.5f));
     else            lv_label_set_text(s_bpm, "No tempo yet");
-    if (crosspad::transportTempoFromHost()) lv_label_set_text(s_from, "The host's MIDI clock sets the tempo");
-    else if (s_lastChange.load() > 0.0f)    lv_label_set_text_fmt(s_from, "Last change: %d BPM", static_cast<int>(s_lastChange.load() + 0.5f));
 
-    const bool playing = s_target.state() == crosspad::TransportState::Playing;
+    const float last = s_lastChange.load();
+    if (crosspad::transportTempoFromHost()) {
+        lv_label_set_text(s_from, "The host's MIDI clock sets the tempo");
+    } else if (last > 0.0f) {
+        lv_label_set_text_fmt(s_from, "Last change: %d BPM", static_cast<int>(last + 0.5f));
+    } else {
+        lv_label_set_text(s_from, "");
+    }
+
+    const bool ours = holds_transport();
+    const bool playing = ours && s_target.state() == crosspad::TransportState::Playing;
     if (playing && !s_wasPlaying) s_playStartMs = now_ms();
     s_wasPlaying = playing;
-    const int beat = playing ? example_tempo::beatAt(now_ms() - s_playStartMs, bpm) : -1;
+    const int kElsewhere = -3;   // another app has the transport
+    int beat = kElsewhere;
+    if (ours) beat = playing ? example_tempo::beatAt(now_ms() - s_playStartMs, bpm) : -1;
     if (beat == s_shownBeat) return;
     s_shownBeat = beat;
+    if (beat == kElsewhere) {
+        lv_label_set_text(s_beat, "Another app has the transport");
+        for (uint8_t p = 0; p < 4; ++p) crosspad::getPadManager().clearPadColor(p);
+        return;
+    }
     light_beat(beat);
     if (beat >= 0) lv_label_set_text_fmt(s_beat, "Beat %d", beat + 1);
     else           lv_label_set_text(s_beat, "Press PLAY on the transport bar");

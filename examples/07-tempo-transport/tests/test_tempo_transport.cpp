@@ -28,6 +28,26 @@ TEST_CASE("tempo-transport: taps clamp to the transport's limits", "[tempo-trans
     REQUIRE(t.tap(100) == Catch::Approx(crosspad::kTransportTempoMax));
 }
 
+TEST_CASE("tempo-transport: only the last four intervals count", "[tempo-transport]")
+{
+    TapTempo t;
+    t.tap(0);
+    REQUIRE(t.tap(1000) == Catch::Approx(60.0f));
+    t.tap(1500); t.tap(2000);
+    REQUIRE(t.tap(2500) == Catch::Approx(96.0f));   // 1000, 500, 500, 500
+    REQUIRE(t.tap(3000) == Catch::Approx(120.0f));  // the 1000 ms interval has dropped out
+}
+
+TEST_CASE("tempo-transport: a gap of exactly two seconds still counts", "[tempo-transport]")
+{
+    TapTempo t;
+    t.tap(0);
+    REQUIRE(t.tap(2000) == Catch::Approx(30.0f));
+    TapTempo u;
+    u.tap(0);
+    REQUIRE(u.tap(2001) == 0.0f);   // one millisecond more starts again
+}
+
 TEST_CASE("tempo-transport: the target plays and stops", "[tempo-transport]")
 {
     BlinkTarget b;
