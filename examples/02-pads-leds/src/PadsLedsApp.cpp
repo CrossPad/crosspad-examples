@@ -51,8 +51,10 @@ void tick(lv_timer_t*)
 // [docs:rainbow]
 // PadAnimator holds a whole frame until stop(): while it shows, pad presses
 // do not repaint the LEDs. Good for a moment, not for playing.
-// isActive() is the truth: stop only a frame this app started, and never
-// start over an animation that something else is playing.
+// isActive() says an animation is showing, not whose: if the board starts its
+// own (an update's progress bar) while the rainbow is up, Stop ends that one
+// too. Fine for a demo; an app that must not interfere checks before it
+// starts and leaves the animator alone after.
 void on_rainbow(lv_event_t*)
 {
     auto& anim = crosspad::getPadAnimator();
