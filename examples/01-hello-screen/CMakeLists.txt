@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# ESP-IDF component. The simulator does not read this file: it globs src/*.cpp
-# and adds include/ itself, so one source tree serves both platforms.
+# ESP-IDF component. The simulator does not run this file: it globs src/*.cpp
+# itself (recursively only if this file says GLOB_RECURSE) and adds include/, so
+# one source tree serves both platforms.
 file(GLOB SRCS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
 idf_component_register(

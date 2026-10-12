@@ -35,7 +35,7 @@ void on_press(lv_event_t*)
 // [/docs:press]
 
 // [docs:modal]
-// A hidden panel does not stop the encoder: it still clicks whatever is
+// A panel on top does not stop the encoder: it still clicks whatever is
 // focused behind it. A disabled button is skipped by the encoder and ignores
 // its click, so the screen is disabled while the panel is up.
 void show_details(bool show)
@@ -44,15 +44,15 @@ void show_details(bool show)
     for (uint32_t i = 0; i < lv_obj_get_child_count(s_root); ++i)
         lv_obj_set_state(lv_obj_get_child(s_root, i), LV_STATE_DISABLED, show);
 }
-// [/docs:modal]
 
 void on_details(lv_event_t*) { show_details(true); }
+// [/docs:modal]
 
 // [docs:close]
 void on_close(lv_event_t* e)
 {
-    // Never destroyApp() from inside an event: it deletes the very button
-    // this event is running on. destroyAppAsync() waits for the event to end.
+    // Never destroyApp() from inside an event: it tears the app down while LVGL
+    // is still delivering the click. destroyAppAsync() waits for the event to end.
     auto* app = static_cast<App*>(lv_event_get_user_data(e));
     app->destroyAppAsync();
 }
@@ -71,6 +71,7 @@ bool on_back(lv_obj_t*)
 }
 // [/docs:back]
 
+// [docs:add-button]
 lv_obj_t* add_button(lv_obj_t* parent, const char* text, lv_event_cb_t cb, void* user)
 {
     lv_obj_t* b = lv_button_create(parent);
@@ -81,6 +82,7 @@ lv_obj_t* add_button(lv_obj_t* parent, const char* text, lv_event_cb_t cb, void*
     if (s_group) lv_group_add_obj(s_group, b);
     return b;
 }
+// [/docs:add-button]
 
 } // namespace
 
