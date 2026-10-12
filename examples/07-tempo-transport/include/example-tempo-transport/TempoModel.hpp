@@ -50,8 +50,8 @@ public:
     const char* name() const override { return "BLINK"; }
 
 private:
-    // The bar reads it on the LVGL task; PLAY can also arrive from a host's
-    // MIDI Start on another task. An atomic keeps state() cheap and safe.
+    // The bar reads it on the LVGL task; stop() can come from another task when
+    // another app claims the transport. An atomic keeps state() cheap and safe.
     std::atomic<bool> playing_{false};
 };
 // [/docs:target]

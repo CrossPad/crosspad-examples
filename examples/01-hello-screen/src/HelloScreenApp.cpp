@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+// [docs:includes]
 #if __has_include("pc_stubs/PcApp.hpp")
   #include "pc_stubs/PcApp.hpp"        // the simulator's App
 #else
@@ -9,6 +10,7 @@
 #include "crosspad-gui/widgets/gui_helpers.h"
 #include "lvgl.h"
 #include "example-hello-screen/HelloModel.hpp"
+// [/docs:includes]
 
 /*
  * Hello Screen -- the smallest complete CrossPad app.
