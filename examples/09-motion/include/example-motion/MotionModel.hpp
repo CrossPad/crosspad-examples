@@ -16,9 +16,13 @@ inline uint8_t tiltToCc(float rollDeg)
 }
 
 /// Send only when the value moved by at least 2: the sensor jitters by one.
+/// The ends are the exception: 0 and 127 are always sent once reached, or a slow
+/// sweep (steps of one) would stop a value short of the end.
 inline bool worthSending(int last, uint8_t now)
 {
-    return last < 0 || now > last + 1 || now + 1 < last;
+    if (last < 0) return true;
+    if (now != last && (now == 0 || now == 127)) return true;
+    return now > last + 1 || now + 1 < last;
 }
 
 } // namespace example_motion
