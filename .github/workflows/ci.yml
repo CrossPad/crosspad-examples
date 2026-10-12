@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with: { persist-credentials: false }
       - run: pip install pytest pillow
       - run: python3 -m pytest tests/tools -q
 
@@ -21,8 +22,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with: { persist-credentials: false }
       - uses: actions/checkout@v4
-        with: { repository: CrossPad/crosspad-core, path: _deps/crosspad-core, token: "${{ secrets.SDK_READ_TOKEN || github.token }}" }
+        with: { repository: CrossPad/crosspad-core, path: _deps/crosspad-core, persist-credentials: false, token: "${{ secrets.SDK_READ_TOKEN || github.token }}" }
       - run: sudo apt-get update && sudo apt-get install -y ninja-build
       - run: cmake -S tests -B tests/build -G Ninja -DCROSSPAD_CORE_DIR=$PWD/_deps/crosspad-core
       - run: cmake --build tests/build
@@ -32,8 +34,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with: { persist-credentials: false }
       - uses: actions/checkout@v4
-        with: { repository: CrossPad/crosspad-pc, ref: master, path: _deps/crosspad-pc, submodules: recursive, token: "${{ secrets.SDK_READ_TOKEN || github.token }}" }
+        with: { repository: CrossPad/crosspad-pc, ref: master, path: _deps/crosspad-pc, submodules: recursive, persist-credentials: false, token: "${{ secrets.SDK_READ_TOKEN || github.token }}" }
       - run: sudo apt-get update && sudo apt-get install -y build-essential cmake ninja-build pkg-config libsdl2-dev libasound2-dev libpulse-dev libdbus-1-dev   # crosspad-pc README, "Linux"
       - run: python3 tools/install.py --target pc _deps/crosspad-pc
       - run: cmake -S _deps/crosspad-pc -B _deps/crosspad-pc/build -G Ninja -DCMAKE_BUILD_TYPE=Debug
@@ -58,14 +61,18 @@ jobs:
     container: { image: "espressif/idf:v5.5.5" }
     steps:
       - uses: actions/checkout@v4
+        with: { persist-credentials: false }
       - uses: actions/checkout@v4
-        with: { repository: CrossPad/platform-idf, path: _deps/platform-idf, token: "${{ secrets.SDK_READ_TOKEN || github.token }}" }
+        with: { repository: CrossPad/platform-idf, path: _deps/platform-idf, persist-credentials: false, token: "${{ secrets.SDK_READ_TOKEN || github.token }}" }
       - name: Only the submodules the examples image needs
         working-directory: _deps/platform-idf
+        env: { SDK_TOKEN: "${{ secrets.SDK_READ_TOKEN || github.token }}" }
         run: |
           git config --global --add safe.directory '*'
           git config --global http.version HTTP/1.1
-          git -c "http.extraheader=Authorization: basic $(printf 'x-access-token:%s' '${{ secrets.SDK_READ_TOKEN || github.token }}' | base64 -w0)" \
+          b64=$(printf 'x-access-token:%s' "$SDK_TOKEN" | base64 -w0)
+          echo "::add-mask::$b64"
+          git -c "http.extraheader=Authorization: basic $b64" \
             submodule update --init components/crosspad-core components/crosspad-gui components/crosspad-mixer components/crosspad-sampler
       - run: python3 tools/install.py --target idf _deps/platform-idf
       - name: Build v2
@@ -79,12 +86,13 @@ jobs:
 
   hil:
     # Never on pull_request: a public repo on the bench's self-hosted runner would
-    # run anyone's code next to the board.
-    if: github.event_name != 'pull_request' && vars.CI_RUNNER == 'self-hosted'
+    # run anyone's code next to the board; workflow_dispatch from another branch must not reach it either.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.CI_RUNNER == 'self-hosted'
     needs: idf-build
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
+        with: { persist-credentials: false }
       - uses: actions/download-artifact@v4
         with: { name: examples-v2, path: fw }
       - name: Churn every example on the bench, then put the release back

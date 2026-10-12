@@ -12,7 +12,7 @@ H=(--holder crosspad-examples-ci)
 APPS=$(grep -ho 'REGISTER_APP\(_PL\)\?( *[A-Za-z0-9_]*' examples/*/src/*.cpp | sed 's/.*( *//' | paste -sd, -)
 FW=$(ls "$FW_DIR"/*.bin | grep -v -e ota_data -e partition -e bootloader | head -1)
 # The newest platform-idf release, pre-releases included: there is no stable one yet.
-TAG=$(gh release list --repo CrossPad/platform-idf --exclude-drafts --limit 1 --json tagName -q '.[0].tagName')
+TAG=$(gh release list --repo CrossPad/platform-idf --exclude-drafts --limit 1 --json tagName -q '.[0].tagName // empty')
 [ -n "$APPS" ] || { echo "error: no REGISTER_APP found under examples/*/src" >&2; exit 1; }
 [ -n "$FW" ]   || { echo "error: no firmware .bin in $FW_DIR" >&2; exit 1; }
 [ -n "$TAG" ]  || { echo "error: could not find a platform-idf release to restore" >&2; exit 1; }
@@ -26,11 +26,21 @@ if [ $((6 + n)) -gt 24 ]; then
 fi
 
 restore() {
-  local dir
+  # Always give the bench back, whatever happens to the download or the flash.
+  local rc=0 dir
   dir=$(mktemp -d)
-  gh release download "$TAG" --repo CrossPad/platform-idf --pattern "CrossPad-$TAG-v2-full.bin" --dir "$dir" --clobber
-  "$HIL" "${H[@]}" flash "$dir/CrossPad-$TAG-v2-full.bin"
-  "$HIL" "${H[@]}" bench release "platform-idf $TAG full"
+  {
+    gh release download "$TAG" --repo CrossPad/platform-idf --pattern "CrossPad-$TAG-v2-full.bin" --dir "$dir" --clobber &&
+      "$HIL" "${H[@]}" flash "$dir/CrossPad-$TAG-v2-full.bin"
+  } || rc=$?
+  rm -rf "$dir"
+  if [ "$rc" -eq 0 ]; then
+    "$HIL" "${H[@]}" bench release "platform-idf $TAG full" || rc=$?
+  else
+    echo "error: restoring platform-idf $TAG failed (exit $rc); the examples image may still be on the board" >&2
+    "$HIL" "${H[@]}" bench release "UNKNOWN: restore of platform-idf $TAG failed, the crosspad-examples image may still be on the board" || true
+  fi
+  return "$rc"
 }
 
 "$HIL" "${H[@]}" bench claim "crosspad-examples CI ${GITHUB_SHA:-local}, ~20 min" --ttl 25
@@ -49,7 +59,15 @@ case "$guard" in
   *) echo "error: the bench board's USB serial guard is not off (reply: '$guard'); an unattended run would wait for an on-screen Allow. Turn it off once: $HIL cdc 'USB_GUARD 0'" >&2; exit 1 ;;
 esac
 
-trap restore EXIT          # from here on the board is ours and gets put back
+# From here on the board is ours and gets put back. A failed restore turns an
+# otherwise green run red (a trap alone would keep the script's own exit code).
+on_exit() {
+  local rc=$? rrc=0
+  restore || rrc=$?
+  [ "$rc" -ne 0 ] || rc=$rrc
+  exit "$rc"
+}
+trap on_exit EXIT
 "$HIL" "${H[@]}" flash "$FW"
 "$HIL" "${H[@]}" run app_churn --apps "$APPS" --rounds 4
 "$HIL" "${H[@]}" run back_churn --apps "$APPS" --rounds 4

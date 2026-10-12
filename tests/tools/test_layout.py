@@ -64,3 +64,13 @@ def test_app_names_are_unique():
 def test_the_examples_fit_the_app_registry():
     # The examples image registers 6 apps of its own (facts d); the registry holds 24.
     assert 6 + len(FOLDERS) <= 24
+
+
+def test_every_folder_under_examples_is_named_nn_slug_and_prefixes_are_unique():
+    # FOLDERS only globs NN-*, so a misnamed folder would escape every check above
+    # while tools/install.py still installs it.
+    dirs = sorted(p.name for p in (REPO / "examples").iterdir() if p.is_dir() and not p.name.startswith("."))
+    bad = [d for d in dirs if not re.fullmatch(r"\d\d-[a-z0-9]+(-[a-z0-9]+)*", d)]
+    assert not bad, f"misnamed example folders: {bad}"
+    prefixes = [d[:2] for d in dirs]
+    assert len(prefixes) == len(set(prefixes)), f"duplicate NN prefixes: {prefixes}"
