@@ -119,10 +119,11 @@ lv_obj_t* MidiOut_create(lv_obj_t* parent, App*)
 
 void MidiOut_destroy(lv_obj_t* root)
 {
+    // root is null when the app's screen was already wiped: free what is ours, delete nothing.
     if (s_timer) { lv_timer_delete(s_timer); s_timer = nullptr; }
     if (s_group) { lv_group_delete_deferred(s_group); s_group = nullptr; }
     s_last = s_channel = nullptr;
-    lv_obj_delete_async(root);
+    if (root) lv_obj_delete_async(root);
 }
 
 // [docs:register]

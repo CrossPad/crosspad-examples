@@ -177,6 +177,7 @@ lv_obj_t* TempoTransport_create(lv_obj_t* parent, App*)
 // [docs:destroy]
 void TempoTransport_destroy(lv_obj_t* root)
 {
+    // root is null when the app's screen was already wiped: free what is ours, delete nothing.
     if (s_timer) { lv_timer_delete(s_timer); s_timer = nullptr; }
     if (s_sub) { crosspad::getEventBus().unsubscribe(s_sub); s_sub = nullptr; }
     s_target.stop();
@@ -185,7 +186,7 @@ void TempoTransport_destroy(lv_obj_t* root)
     for (uint8_t p = 0; p < 4; ++p) crosspad::getPadManager().clearPadColor(p);
     if (s_group) { lv_group_delete_deferred(s_group); s_group = nullptr; }
     s_bpm = s_beat = s_from = nullptr;
-    lv_obj_delete_async(root);
+    if (root) lv_obj_delete_async(root);
 }
 // [/docs:destroy]
 

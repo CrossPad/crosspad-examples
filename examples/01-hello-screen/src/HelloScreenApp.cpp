@@ -130,15 +130,16 @@ lv_obj_t* HelloScreen_create(lv_obj_t* parent, App* app)
 // [docs:destroy]
 void HelloScreen_destroy(lv_obj_t* root)
 {
+    // root is null when the app's screen was already wiped: free what is ours, delete nothing.
     if (s_group) {
         lv_group_delete_deferred(s_group);   // the encoder may still be mid-read
         s_group = nullptr;
     }
-    if (s_details) lv_obj_delete_async(s_details);
+    if (root && s_details) lv_obj_delete_async(s_details);
     s_details = nullptr;
     s_root = nullptr;
     s_count = nullptr;
-    lv_obj_delete_async(root);
+    if (root) lv_obj_delete_async(root);
 }
 // [/docs:destroy]
 

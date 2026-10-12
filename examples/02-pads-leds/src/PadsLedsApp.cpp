@@ -141,6 +141,7 @@ lv_obj_t* PadsLeds_create(lv_obj_t* parent, App*)
 // [docs:destroy]
 void PadsLeds_destroy(lv_obj_t* root)
 {
+    // root is null when the app's screen was already wiped: free what is ours, delete nothing.
     if (s_rainbow && crosspad::getPadAnimator().isActive()) crosspad::getPadAnimator().stop();
     s_rainbow = false;
     s_rainbow_label = nullptr;
@@ -149,7 +150,7 @@ void PadsLeds_destroy(lv_obj_t* root)
     if (s_group) { lv_group_delete_deferred(s_group); s_group = nullptr; }
     for (auto& c : s_cells) c = nullptr;
     s_status = nullptr;
-    lv_obj_delete_async(root);
+    if (root) lv_obj_delete_async(root);
 }
 // [/docs:destroy]
 

@@ -172,10 +172,11 @@ lv_obj_t* Motion_create(lv_obj_t* parent, App*)
 // [docs:destroy]
 void Motion_destroy(lv_obj_t* root)
 {
+    // root is null when the app's screen was already wiped: free what is ours, delete nothing.
     if (s_timer) { lv_timer_delete(s_timer); s_timer = nullptr; }
     if (s_sub) { crosspad::getEventBus().unsubscribe(s_sub); s_sub = nullptr; }
     s_dot = s_cc = s_info = nullptr;
-    lv_obj_delete_async(root);
+    if (root) lv_obj_delete_async(root);
 }
 // [/docs:destroy]
 

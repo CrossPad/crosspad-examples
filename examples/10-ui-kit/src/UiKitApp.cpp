@@ -194,6 +194,7 @@ lv_obj_t* UiKit_create(lv_obj_t* parent, App*)
 // [docs:destroy]
 void UiKit_destroy(lv_obj_t* root)
 {
+    // root is null when the app's screen was already wiped: free what is ours, delete nothing.
     s_alive.store(false);   // a show_pad() still queued will see this
     if (s_sub) { crosspad::getEventBus().unsubscribe(s_sub); s_sub = nullptr; }
     // An open dialog hands the encoder back to s_group: close it before s_group goes.
@@ -202,11 +203,11 @@ void UiKit_destroy(lv_obj_t* root)
     s_backToken = 0;
     ui_toast_dismiss();
     if (s_group) { lv_group_delete_deferred(s_group); s_group = nullptr; }
-    if (s_panel) lv_obj_delete_async(s_panel);
+    if (root && s_panel) lv_obj_delete_async(s_panel);
     s_panel = nullptr;
     s_row = nullptr;
     s_count = nullptr;
-    lv_obj_delete_async(root);
+    if (root) lv_obj_delete_async(root);
 }
 // [/docs:destroy]
 
