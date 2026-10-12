@@ -45,6 +45,10 @@ python3 tools/sim_apps.py
 Without a display (CI, a server), start the simulator with
 `HOME=$(mktemp -d) SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy SDL_RENDER_DRIVER=software ./bin/CrossPad`.
 
+To see the MIDI the simulator sends (05 midi-out) on Linux, without a board, run
+`python3 tools/midi_monitor.py`. It opens a receive-only ALSA port named
+"CrossPad Monitor", which the simulator picks as its MIDI output on its own.
+
 `tools/install.py --target pc <checkout> --remove` takes them out again. It only
 touches folders it made itself (they carry a `.crosspad-example` marker).
 
