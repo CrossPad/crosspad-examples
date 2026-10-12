@@ -1,0 +1,17 @@
+{
+  "name": "Pads and LEDs",
+  "id": "example-pads-leds",
+  "version": "0.1.0",
+  "description": "Pads light in their own colour, harder hits brighter, and the screen mirrors the grid.",
+  "category": "example",
+  "icon": "example-pads-leds.png",
+  "component_path": "components/crosspad-example-pads-leds",
+  "platforms": ["esp-idf", "pc"],
+  "requires": {
+    "crosspad-core": ">=1.53.0",
+    "crosspad-gui": ">=1.23.0"
+  },
+  "changelog": [
+    "0.1.0: first version"
+  ]
+}
