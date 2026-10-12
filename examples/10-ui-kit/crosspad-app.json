@@ -1,0 +1,17 @@
+{
+  "name": "UI Kit",
+  "id": "example-ui-kit",
+  "version": "0.1.0",
+  "description": "CrossPad's look, toasts, a confirm dialog, an overlay the power button closes, and pad presses from the event task shown safely.",
+  "category": "example",
+  "icon": "example-ui-kit.png",
+  "component_path": "components/crosspad-example-ui-kit",
+  "platforms": ["esp-idf", "pc"],
+  "requires": {
+    "crosspad-core": ">=1.53.0",
+    "crosspad-gui": ">=1.23.1"
+  },
+  "changelog": [
+    "0.1.0: first version"
+  ]
+}
