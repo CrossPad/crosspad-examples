@@ -1,0 +1,17 @@
+{
+  "name": "Tempo and Transport",
+  "id": "example-tempo-transport",
+  "version": "0.1.0",
+  "description": "The smallest transport target: PLAY and STOP drive it, pads 1-4 count the beat, Tap sets the tempo for everything.",
+  "category": "example",
+  "icon": "example-tempo-transport.png",
+  "component_path": "components/crosspad-example-tempo-transport",
+  "platforms": ["esp-idf", "pc"],
+  "requires": {
+    "crosspad-core": ">=1.53.0",
+    "crosspad-gui": ">=1.23.0"
+  },
+  "changelog": [
+    "0.1.0: first version"
+  ]
+}
