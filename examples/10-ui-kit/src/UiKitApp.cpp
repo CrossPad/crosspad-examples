@@ -20,7 +20,7 @@
 
 /*
  * UI Kit -- CrossPad's look, toasts, a confirm dialog, an overlay the power
- * button closes, and pad presses from another task shown safely.
+ * button closes, and pad hits from another task shown safely.
  * Recipe: https://crosspad.app/docs/apps/cookbook/ui-kit/
  */
 namespace {
@@ -30,10 +30,11 @@ lv_obj_t* s_count = nullptr;                    // "Pads hit: N"
 lv_obj_t* s_row = nullptr;                      // the row of buttons
 lv_obj_t* s_panel = nullptr;                    // the overlay, hidden until asked
 lv_group_t* s_group = nullptr;                  // what the encoder walks
+lv_obj_t* s_dialog = nullptr;                   // the confirm dialog while it is open
 crosspad::SubscriptionHandle s_sub = nullptr;   // our SamplePlayback subscription
 uint32_t s_backToken = 0;                       // the panel's place on the back stack, 0 = none
 std::atomic<bool> s_alive{false};               // false once the app is closing
-int s_pads = 0;
+int s_pads = 0;                                 // pad hits counted since the last reset
 // [/docs:state]
 
 // [docs:helpers]
@@ -51,8 +52,8 @@ void show_panel(bool show)
 // [/docs:helpers]
 
 // [docs:post]
-// On the LVGL task, whenever the queue reaches it -- which can be after the
-// app closed, so it checks first.
+// On the LVGL task, when the queue reaches it. s_alive is false once the app
+// is closing, so a hit that was queued before the close does nothing.
 void show_pad(void* p)
 {
     if (!s_alive.load()) return;
@@ -62,9 +63,9 @@ void show_pad(void* p)
 }
 
 // On the event task: no LVGL here. Hand the pad over to the LVGL task.
-// The Sampler plays the pads in the background and posts SamplePlayback for each
-// press it plays (source App). PadPressed is posted only when no pad logic at
-// all is active, and the Sampler installs itself as the base one: it never comes.
+// These are the pads the Sampler plays (from a finger or a running sequence);
+// without the Sampler as the base pad logic no event arrives. PadPressed is not
+// used: it is posted only when no pad logic at all is active.
 void on_pad(const void* data, crosspad::EventType, void*)
 {
     const auto* d = static_cast<const crosspad::SamplePlaybackData*>(data);
@@ -78,6 +79,7 @@ void on_toast(lv_event_t*) { ui_toast_show("Saved", 1500, UI_TOAST_SUCCESS); }
 // [docs:modal]
 void on_confirm(bool yes, void*)
 {
+    s_dialog = nullptr;   // the last moment the dialog is alive
     if (!yes || !s_alive.load()) return;
     s_pads = 0;
     show_count();
@@ -86,8 +88,8 @@ void on_confirm(bool yes, void*)
 void on_ask(lv_event_t*)
 {
     // The dialog takes the encoder and gives it back to s_group when it closes.
-    ui_modal_confirm("Reset counter?", "The pad counter goes back to zero.",
-                     "Reset", "Cancel", on_confirm, nullptr, s_group);
+    s_dialog = ui_modal_confirm("Reset counter?", "The pad counter goes back to zero.",
+                                "Reset", "Cancel", on_confirm, nullptr, s_group);
 }
 // [/docs:modal]
 
@@ -106,8 +108,9 @@ bool on_panel_back(void*)
 
 void on_panel(lv_event_t*)
 {
-    show_panel(true);
     if (!s_backToken) s_backToken = crosspad_gui::ui_back_push(on_panel_back, nullptr);
+    if (!s_backToken) return;   // the back stack is full: no way to close it, so do not open
+    show_panel(true);
 }
 // [/docs:back-stack]
 
@@ -129,6 +132,7 @@ lv_obj_t* UiKit_create(lv_obj_t* parent, App*)
     // Every static starts clean on each visit.
     s_count = s_row = s_panel = nullptr;
     s_group = nullptr;
+    s_dialog = nullptr;
     s_sub = nullptr;
     s_backToken = 0;
     s_pads = 0;
@@ -181,7 +185,7 @@ lv_obj_t* UiKit_create(lv_obj_t* parent, App*)
     lv_label_set_text(note, "An overlay inside the app.\n\nThe power button closes it first.");
     lv_obj_set_hidden(s_panel, true);
 
-    // No pad logic of our own: the kit keeps playing, and the bus carries every press.
+    // No pad logic of our own: the Sampler keeps playing the pads and posts each hit.
     s_sub = crosspad::getEventBus().subscribe(crosspad::EventType::SamplePlayback,
                                               on_pad, nullptr);
     return root;
@@ -192,6 +196,8 @@ void UiKit_destroy(lv_obj_t* root)
 {
     s_alive.store(false);   // a show_pad() still queued will see this
     if (s_sub) { crosspad::getEventBus().unsubscribe(s_sub); s_sub = nullptr; }
+    // An open dialog hands the encoder back to s_group: close it before s_group goes.
+    if (s_dialog) ui_modal_confirm_dismiss(s_dialog, false);
     crosspad_gui::ui_back_remove(s_backToken);   // a panel left open leaves no handler behind
     s_backToken = 0;
     ui_toast_dismiss();

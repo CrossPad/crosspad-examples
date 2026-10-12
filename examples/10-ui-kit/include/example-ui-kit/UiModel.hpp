@@ -6,7 +6,7 @@
 
 namespace example_ui {
 
-/// The toast a pad press posts: "Pad 1", "Pad 16".
+/// The toast a pad hit posts: "Pad 1", "Pad 16".
 inline std::string padToast(uint8_t padIdx)
 {
     char buf[16];

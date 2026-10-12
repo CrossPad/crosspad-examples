@@ -2,7 +2,7 @@
   "name": "UI Kit",
   "id": "example-ui-kit",
   "version": "0.1.0",
-  "description": "CrossPad's look, toasts, a confirm dialog, an overlay the power button closes, and pad presses from the event task shown safely.",
+  "description": "CrossPad's look, toasts, a confirm dialog, an overlay the power button closes, and pad hits from the event task shown safely.",
   "category": "example",
   "icon": "example-ui-kit.png",
   "component_path": "components/crosspad-example-ui-kit",
