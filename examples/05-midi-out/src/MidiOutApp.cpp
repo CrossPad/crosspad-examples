@@ -134,8 +134,8 @@ lv_obj_t* MidiOut_create(lv_obj_t* parent, App*)
 
     lv_obj_t* where = lv_label_create(root);
     lv_obj_set_width(where, LV_PCT(100));
-    lv_label_set_text(where, "Goes out over USB and Bluetooth, as the\n"
-                             "MIDI settings route it.");
+    lv_label_set_text(where, "Goes out over USB and Bluetooth,\n"
+                             "as the MIDI settings route it.");
 
     s_timer = lv_timer_create(tick, 33, nullptr);
     return root;
