@@ -108,6 +108,7 @@ lv_obj_t* PadsLeds_create(lv_obj_t* parent, App*)
     lv_obj_set_size(root, LV_PCT(100), LV_PCT(100));
     lv_obj_remove_flag(root, LV_OBJ_FLAG_SCROLLABLE);
 
+    // [docs:grid]
     // The screen is a picture of the pads: row 0 on screen is pads 13-16.
     const int32_t cell = 36, gap = 4;
     for (int row = 0; row < 4; ++row) {
@@ -122,6 +123,7 @@ lv_obj_t* PadsLeds_create(lv_obj_t* parent, App*)
             s_cells[pad] = c;
         }
     }
+    // [/docs:grid]
 
     s_status = lv_label_create(root);
     lv_obj_align(s_status, LV_ALIGN_TOP_RIGHT, 0, 0);

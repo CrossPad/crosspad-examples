@@ -4,6 +4,7 @@
 #include <atomic>
 #include <cstdint>
 
+// [docs:handler]
 /// Pad callbacks run on the pad task, not the LVGL task: this class lights
 /// the pads and records levels, and touches no LVGL object.
 class PadsLedsPadLogic : public crosspad::IPadLogicHandler {
@@ -22,3 +23,4 @@ private:
     std::atomic<uint8_t> levels_[16]{};
     std::atomic<int> lastPad_{-1};
 };
+// [/docs:handler]

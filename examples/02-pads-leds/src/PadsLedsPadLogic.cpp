@@ -6,11 +6,13 @@
 using example_pads::padColor;
 
 namespace {
+// [docs:light]
 void light(crosspad::PadManager& pm, uint8_t pad, uint8_t level)
 {
     const auto c = padColor(pad, level);
     pm.setPadColor(pad, c.r, c.g, c.b);
 }
+// [/docs:light]
 } // namespace
 
 // [docs:activate]
