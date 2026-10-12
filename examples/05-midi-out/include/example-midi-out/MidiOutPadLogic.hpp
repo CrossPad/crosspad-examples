@@ -21,7 +21,8 @@ public:
 
     // [docs:held]
 private:
-    void endNote(uint8_t pad);              // Note Off and bend reset, on the channel the note started on
+    // Note Off and bend reset, on the channel the note started on.
+    void endNote(uint8_t pad);
 
     std::atomic<uint16_t> held_{0};         // bit n set = pad n has a Note On out
     std::atomic<uint8_t> noteChannel_[16]{};

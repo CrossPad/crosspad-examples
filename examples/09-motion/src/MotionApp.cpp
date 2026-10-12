@@ -57,6 +57,9 @@ constexpr int32_t kBox = 120;                       // box side, border included
 constexpr int32_t kDot = 10;                        // dot side
 constexpr int32_t kHalf = (kBox - 2 - kDot) / 2;    // 54: travel from the middle
 constexpr float kMaxDeg = 45.0f;                    // the angle that reaches the edge
+constexpr int32_t kGap = 12;                        // between the box and the text beside it
+constexpr int32_t kCcY = 20;                        // the CC label's top, in the text column
+constexpr int32_t kInfoY = 70;                      // the tap label's top, below a wrapped CC label
 
 // Keeps a tilt angle inside the spirit level.
 float edge(float deg) { return deg < -kMaxDeg ? -kMaxDeg : (deg > kMaxDeg ? kMaxDeg : deg); }
@@ -156,10 +159,19 @@ lv_obj_t* Motion_create(lv_obj_t* parent, App*)
     lv_obj_set_style_bg_color(s_dot, lv_color_hex(0xFF5C5C), 0);
     lv_obj_set_pos(s_dot, kHalf, kHalf);
 
+    // The labels sit in a column right of the box: fixed width, wrapping, so on the
+    // 320 px screen nothing runs under the box.
+    lv_obj_update_layout(root);
+    const int32_t textW = lv_obj_get_content_width(root) - kBox - kGap;
     s_cc = lv_label_create(root);
-    lv_obj_align(s_cc, LV_ALIGN_TOP_RIGHT, 0, 20);
     s_info = lv_label_create(root);
-    lv_obj_align(s_info, LV_ALIGN_TOP_RIGHT, 0, 50);
+    lv_obj_t* const labels[] = {s_cc, s_info};
+    const int32_t labelY[] = {kCcY, kInfoY};
+    for (int i = 0; i < 2; ++i) {
+        lv_label_set_long_mode(labels[i], LV_LABEL_LONG_WRAP);
+        lv_obj_set_width(labels[i], textW);
+        lv_obj_align(labels[i], LV_ALIGN_TOP_LEFT, kBox + kGap, labelY[i]);
+    }
 
     // [docs:subscribe]
     s_sub = crosspad::getEventBus().subscribe(crosspad::EventType::MotionGesture,

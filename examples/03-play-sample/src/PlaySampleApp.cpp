@@ -83,7 +83,8 @@ lv_obj_t* PlaySample_create(lv_obj_t* parent, App*)
     else      lv_label_set_text(kit, "No kit loaded. MODE, then pad 13 (Kits).");
 
     s_mode = lv_label_create(root);
-    lv_obj_set_width(s_mode, LV_PCT(100));   // wrap inside the screen instead of scrolling it sideways
+    // Wrap inside the screen instead of scrolling it sideways.
+    lv_obj_set_width(s_mode, LV_PCT(100));
     show_mode();
 
     lv_obj_t* btn = lv_button_create(root);

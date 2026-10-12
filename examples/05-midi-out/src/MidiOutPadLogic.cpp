@@ -9,7 +9,10 @@ using namespace example_midi;
 // [docs:pack]
 namespace {
 // What the screen is told: status<<16 | data1<<8 | data2.
-uint32_t pack(uint8_t status, uint8_t d1, uint8_t d2) { return (uint32_t(status) << 16) | (uint32_t(d1) << 8) | d2; }
+uint32_t pack(uint8_t status, uint8_t d1, uint8_t d2)
+{
+    return (uint32_t(status) << 16) | (uint32_t(d1) << 8) | d2;
+}
 }
 // [/docs:pack]
 
@@ -37,13 +40,15 @@ void MidiOutPadLogic::onPadPress(crosspad::PadManager& pm, uint8_t pad, uint8_t 
 {
     if (pad >= 16) return;
     const uint16_t bit = uint16_t(1u << pad);
-    const uint8_t ch = channel.load(), vel = velocity ? velocity : 1;   // velocity 0 would read as a Note Off
-    if (held_.fetch_and(static_cast<uint16_t>(~bit)) & bit) endNote(pad);   // pressed again without a release: end the old note first
+    const uint8_t ch = channel.load();
+    const uint8_t vel = velocity ? velocity : 1;   // velocity 0 would read as a Note Off
+    // Pressed again without a release: end the old note first.
+    if (held_.fetch_and(static_cast<uint16_t>(~bit)) & bit) endNote(pad);
     // Record the note before sending it: that keeps the common case right. Pad
     // callbacks run without a lock, so a press racing the app's close by
     // microseconds can still leave one note on; a real app that must never do
     // that also sends All Notes Off (CC 123) on close.
-    noteChannel_[pad].store(ch);   // the release goes to this channel, even if the screen changed it since
+    noteChannel_[pad].store(ch);   // the release goes here, even if the screen changed the channel
     held_.fetch_or(bit);
     crosspad::getMidiOutput().sendNoteOn(noteFor(pad), vel, ch);
     pm.setPadColor(pad, 0, 220, 160);
@@ -54,7 +59,7 @@ void MidiOutPadLogic::onPadRelease(crosspad::PadManager& pm, uint8_t pad)
 {
     if (pad >= 16) return;
     const uint16_t bit = uint16_t(1u << pad);
-    if (!(held_.fetch_and(uint16_t(~bit)) & bit)) return;   // no Note On of ours is out: nothing to end
+    if (!(held_.fetch_and(uint16_t(~bit)) & bit)) return;   // no Note On of ours is out
     endNote(pad);
     pm.setPadColor(pad, 0, 40, 30);
 }
@@ -73,7 +78,7 @@ void MidiOutPadLogic::endNote(uint8_t pad)
 // [docs:expression]
 void MidiOutPadLogic::onPadPressure(crosspad::PadManager&, uint8_t pad, uint8_t pressure)
 {
-    if (pad >= 16 || !(held_.load() & (1u << pad))) return;   // a late event after the release: say nothing
+    if (pad >= 16 || !(held_.load() & (1u << pad))) return;   // a late event after the release
     const uint8_t ch = noteChannel_[pad].load();   // expression follows the note it belongs to
     crosspad::getMidiOutput().sendControlChange(kPressureCc, pressure, ch);
     lastMessage.store(pack(0xB0 | ch, kPressureCc, pressure));
@@ -81,11 +86,11 @@ void MidiOutPadLogic::onPadPressure(crosspad::PadManager&, uint8_t pad, uint8_t 
 
 void MidiOutPadLogic::onPadPan(crosspad::PadManager&, uint8_t pad, int8_t pan)
 {
-    if (pad >= 16 || !(held_.load() & (1u << pad))) return;   // a bend after the release would detune the synth
+    if (pad >= 16 || !(held_.load() & (1u << pad))) return;   // a bend after the release detunes
     const uint8_t ch = noteChannel_[pad].load();
     const int16_t bend = panToBend(pan);
     crosspad::getMidiOutput().sendPitchBend(bend, ch);   // signed: 0 is centre
-    const uint16_t raw = static_cast<uint16_t>(bend + 8192);   // the 14 bits on the wire, for the screen
+    const uint16_t raw = static_cast<uint16_t>(bend + 8192);   // the 14 wire bits, for the screen
     lastMessage.store(pack(0xE0 | ch, raw & 0x7F, raw >> 7));
 }
 // [/docs:expression]

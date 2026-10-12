@@ -74,3 +74,14 @@ def test_every_folder_under_examples_is_named_nn_slug_and_prefixes_are_unique():
     assert not bad, f"misnamed example folders: {bad}"
     prefixes = [d[:2] for d in dirs]
     assert len(prefixes) == len(set(prefixes)), f"duplicate NN prefixes: {prefixes}"
+
+
+def test_no_source_line_exceeds_100_columns():
+    too_long = []
+    for src in sorted((REPO / "examples").rglob("*")):
+        if src.suffix not in (".cpp", ".hpp", ".h") or not src.is_file():
+            continue
+        for n, line in enumerate(src.read_text().splitlines(), 1):
+            if len(line) > 100:
+                too_long.append(f"{src.relative_to(REPO)}:{n} ({len(line)})")
+    assert not too_long, "lines over 100 columns:\n" + "\n".join(too_long)

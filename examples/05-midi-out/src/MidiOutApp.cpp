@@ -38,20 +38,43 @@ void tick(lv_timer_t*)
     const uint32_t m = s_logic->lastMessage.load();
     if (m == s_shown) return;
     s_shown = m;
-    const unsigned status = m >> 16, d1 = (m >> 8) & 0x7F, d2 = m & 0x7F, ch = (status & 0x0F) + 1;
+    const unsigned status = m >> 16, d1 = (m >> 8) & 0x7F, d2 = m & 0x7F;
+    const unsigned ch = (status & 0x0F) + 1;
+    const char* note = kNote[d1 % 12];
+    const int octave = int(d1 / 12) - 1;
     switch (status & 0xF0) {
-    case 0x90: lv_label_set_text_fmt(s_last, "Note On  %s%d (%u)  vel %u  ch %u", kNote[d1 % 12], int(d1 / 12) - 1, d1, d2, ch); break;
-    case 0x80: lv_label_set_text_fmt(s_last, "Note Off  %s%d (%u)  ch %u", kNote[d1 % 12], int(d1 / 12) - 1, d1, ch); break;
-    case 0xB0: lv_label_set_text_fmt(s_last, "CC %u = %u  ch %u", d1, d2, ch); break;
-    case 0xE0: lv_label_set_text_fmt(s_last, "Pitch bend %d  ch %u", int((d2 << 7) | d1) - 8192, ch); break;
-    default: lv_label_set_text(s_last, "Nothing sent yet"); break;   // lastMessage was reset to 0
+    case 0x90:
+        lv_label_set_text_fmt(s_last, "Note On  %s%d (%u)  vel %u  ch %u",
+                              note, octave, d1, d2, ch);
+        break;
+    case 0x80:
+        lv_label_set_text_fmt(s_last, "Note Off  %s%d (%u)  ch %u", note, octave, d1, ch);
+        break;
+    case 0xB0:
+        lv_label_set_text_fmt(s_last, "CC %u = %u  ch %u", d1, d2, ch);
+        break;
+    case 0xE0:
+        lv_label_set_text_fmt(s_last, "Pitch bend %d  ch %u",
+                              int((d2 << 7) | d1) - 8192, ch);
+        break;
+    default:
+        lv_label_set_text(s_last, "Nothing sent yet");   // lastMessage was reset to 0
+        break;
     }
 }
 // [/docs:timer]
 
-void show_channel() { lv_label_set_text_fmt(s_channel, "Channel %u", s_logic->channel.load() + 1u); }
-void on_down(lv_event_t*) { s_logic->channel.store(example_midi::nextChannel(s_logic->channel.load(), -1)); show_channel(); }
-void on_up(lv_event_t*)   { s_logic->channel.store(example_midi::nextChannel(s_logic->channel.load(), +1)); show_channel(); }
+void show_channel()
+{
+    lv_label_set_text_fmt(s_channel, "Channel %u", s_logic->channel.load() + 1u);
+}
+void step_channel(int step)
+{
+    s_logic->channel.store(example_midi::nextChannel(s_logic->channel.load(), step));
+    show_channel();
+}
+void on_down(lv_event_t*) { step_channel(-1); }
+void on_up(lv_event_t*)   { step_channel(+1); }
 
 lv_obj_t* add_button(lv_obj_t* parent, const char* text, lv_event_cb_t cb)
 {
@@ -111,7 +134,8 @@ lv_obj_t* MidiOut_create(lv_obj_t* parent, App*)
 
     lv_obj_t* where = lv_label_create(root);
     lv_obj_set_width(where, LV_PCT(100));
-    lv_label_set_text(where, "Goes out over USB, Bluetooth and the\nSTM32 port, as the MIDI settings route it.");
+    lv_label_set_text(where, "Goes out over USB, Bluetooth and the\n"
+                             "STM32 port, as the MIDI settings route it.");
 
     s_timer = lv_timer_create(tick, 33, nullptr);
     return root;

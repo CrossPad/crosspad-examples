@@ -28,6 +28,9 @@ inline int16_t panToBend(int8_t pan)
 }
 
 /// Channels on the wire are 0..15; people count 1..16.
-inline uint8_t nextChannel(uint8_t ch, int step) { return static_cast<uint8_t>((ch + 16 + step) % 16); }
+inline uint8_t nextChannel(uint8_t ch, int step)
+{
+    return static_cast<uint8_t>((ch + 16 + step) % 16);
+}
 
 } // namespace example_midi

@@ -119,7 +119,8 @@ lv_obj_t* HelloScreen_create(lv_obj_t* parent, App* app)
     lv_obj_set_style_bg_opa(s_details, LV_OPA_COVER, 0);
     lv_obj_set_style_pad_all(s_details, 16, 0);
     lv_obj_t* note = lv_label_create(s_details);
-    lv_label_set_text(note, "A panel inside the app.\n\nClick the power button:\nthis panel closes, the app stays.");
+    lv_label_set_text(note, "A panel inside the app.\n\n"
+                           "Click the power button:\nthis panel closes, the app stays.");
     lv_obj_set_hidden(s_details, true);
 
     app->setOnBack(on_back);

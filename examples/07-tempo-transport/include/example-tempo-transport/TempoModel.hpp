@@ -44,7 +44,8 @@ public:
     void stop() override { playing_.store(false); }
     crosspad::TransportState state() const override
     {
-        return playing_.load() ? crosspad::TransportState::Playing : crosspad::TransportState::Stopped;
+        return playing_.load() ? crosspad::TransportState::Playing
+                               : crosspad::TransportState::Stopped;
     }
     const char* name() const override { return "BLINK"; }
 
