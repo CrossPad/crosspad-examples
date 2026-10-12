@@ -29,6 +29,10 @@ public:
         return bpm;
     }
 
+    /// True once a count has started and more than two seconds have passed
+    /// since its last tap: the series is over, the next tap starts a new one.
+    bool seriesEnded(uint32_t nowMs) const { return count_ > 0 && nowMs - last_ > 2000; }
+
 private:
     uint32_t intervals_[4]{};
     uint32_t last_ = 0;

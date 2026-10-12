@@ -37,6 +37,7 @@ struct ClockBlink : example_tempo::BlinkTarget {
 ClockBlink s_target;                           // what PLAY and STOP reach while we hold the claim
 example_tempo::TapTempo s_tap;                 // the taps so far
 std::atomic<float> s_lastChange{0.0f};         // the last TempoChanged, written on the event task
+bool s_commitPending = false;                  // tapped a tempo that is not committed yet
 crosspad::SubscriptionHandle s_sub = nullptr;  // our TempoChanged subscription
 lv_timer_t* s_timer = nullptr;                 // paints the labels and the pads
 lv_group_t* s_group = nullptr;                 // what the encoder walks
@@ -84,14 +85,24 @@ void on_tap(lv_event_t*)
     const float bpm = s_tap.tap(now_ms());
     if (bpm <= 0.0f) return;                    // the first tap only starts the count
     crosspad::transportSetTempo(bpm);           // heard at once
-    crosspad::transportCommitTempo();           // the edit is done: an open song takes it too
+    s_commitPending = true;                     // committed once, when the taps stop
     crosspad_gui::transportbar_refresh();
+}
+
+// Once per series of taps: a commit re-measures and saves an open song,
+// and the song refuses a commit while it is still saving the last one.
+void commit_taps()
+{
+    if (!s_commitPending) return;
+    s_commitPending = false;
+    if (!crosspad::transportTempoFromHost()) crosspad::transportCommitTempo();
 }
 // [/docs:tap]
 
 // [docs:timer]
 void tick(lv_timer_t*)
 {
+    if (s_tap.seriesEnded(now_ms())) commit_taps();   // two seconds without a tap
     const float bpm = crosspad::transportTempo();
     if (bpm > 0.0f) lv_label_set_text_fmt(s_bpm, "%d BPM", static_cast<int>(bpm + 0.5f));
     else            lv_label_set_text(s_bpm, "No tempo yet");
@@ -127,12 +138,14 @@ void tick(lv_timer_t*)
 
 } // namespace
 
+// [docs:create]
 lv_obj_t* TempoTransport_create(lv_obj_t* parent, App*)
 {
     // Every static starts clean on each visit.
     s_target.stop();
     s_tap = example_tempo::TapTempo{};
     s_lastChange.store(0.0f);
+    s_commitPending = false;
     s_sub = nullptr;
     s_timer = nullptr;
     s_group = nullptr;
@@ -161,18 +174,17 @@ lv_obj_t* TempoTransport_create(lv_obj_t* parent, App*)
     lv_label_set_text(l, "Tap");
     if (s_group) lv_group_add_obj(s_group, tap);
 
-    // [docs:claim]
     // From now on PLAY means this app. A claim outlives the screen on purpose
     // (the Sequencer keeps playing when you leave it); this target has nothing
     // to play without its screen, so destroy stops and releases it.
     crosspad::transportClaim(&s_target);
     crosspad_gui::transportbar_refresh();
-    // [/docs:claim]
 
     s_sub = crosspad::getEventBus().subscribe(crosspad::EventType::TempoChanged, on_tempo, nullptr);
     s_timer = lv_timer_create(tick, 33, nullptr);
     return root;
 }
+// [/docs:create]
 
 // [docs:destroy]
 void TempoTransport_destroy(lv_obj_t* root)
@@ -180,6 +192,7 @@ void TempoTransport_destroy(lv_obj_t* root)
     // root is null when the app's screen was already wiped: free what is ours, delete nothing.
     if (s_timer) { lv_timer_delete(s_timer); s_timer = nullptr; }
     if (s_sub) { crosspad::getEventBus().unsubscribe(s_sub); s_sub = nullptr; }
+    commit_taps();   // taps from the last two seconds still reach the song
     s_target.stop();
     crosspad::transportRelease(&s_target);   // a no-op if another app has claimed since
     crosspad_gui::transportbar_refresh();

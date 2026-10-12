@@ -48,6 +48,15 @@ TEST_CASE("tempo-transport: a gap of exactly two seconds still counts", "[tempo-
     REQUIRE(u.tap(2001) == 0.0f);   // one millisecond more starts again
 }
 
+TEST_CASE("tempo-transport: a series ends after two seconds without a tap", "[tempo-transport]")
+{
+    TapTempo t;
+    REQUIRE_FALSE(t.seriesEnded(100000));   // nothing tapped yet: nothing to end
+    t.tap(0); t.tap(400);
+    REQUIRE_FALSE(t.seriesEnded(2400));     // exactly two seconds after the last tap
+    REQUIRE(t.seriesEnded(2401));
+}
+
 TEST_CASE("tempo-transport: the target plays and stops", "[tempo-transport]")
 {
     BlinkTarget b;
