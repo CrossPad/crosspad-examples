@@ -18,6 +18,9 @@ public:
     example_play::Mode mode() const { return mode_.load(); }
 
 private:
+    void endPitched(crosspad::PadManager& pm, uint8_t pad);   // the pitched note-off + LED off
+    void flushPitched(crosspad::PadManager& pm);              // end every pitched note still held
+
     std::atomic<crosspad::IPadLogicHandler*> base_{nullptr};
     std::atomic<example_play::Mode> mode_{example_play::Mode::Kit};
     std::atomic<uint16_t> pitchedHeld_{0};   // bit per pad held in pitched mode

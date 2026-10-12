@@ -18,18 +18,31 @@ void PlaySamplePadLogic::onActivate(crosspad::PadManager& pm)
 
 void PlaySamplePadLogic::onDeactivate(crosspad::PadManager& pm)
 {
-    // A pitched note still held when the app closes would never get its off.
-    const uint16_t held = pitchedHeld_.exchange(0);
-    for (uint8_t p = 0; p < 16; ++p) {
-        if (!(held & (1u << p))) continue;
-        crosspad::getEventBus().postSamplePlayback(kSourcePad, 0, /*isOn=*/false,
-                                                   crosspad::EventSource::App, 127,
-                                                   transposeFor(p), keyFor(p));
-        pm.notifyNoteOff(p, /*fromSampler=*/true);
-    }
+    flushPitched(pm);   // no pitched note outlives the app
     if (auto* b = base_.exchange(nullptr)) b->onDeactivate(pm);
 }
 // [/docs:base]
+
+// [docs:flush]
+// One place ends a pitched note: the release and the app closing both use it.
+// Only a looped sample stops on the off; a one-shot plays out and ignores it.
+void PlaySamplePadLogic::endPitched(crosspad::PadManager& pm, uint8_t pad)
+{
+    crosspad::getEventBus().postSamplePlayback(kSourcePad, /*wavIdx=*/0, /*isOn=*/false,
+                                               crosspad::EventSource::App, 127,
+                                               transposeFor(pad), keyFor(pad));
+    pm.notifyNoteOff(pad, /*fromSampler=*/true);
+}
+
+// A note still held when the app closes would never get its off.
+void PlaySamplePadLogic::flushPitched(crosspad::PadManager& pm)
+{
+    const uint16_t held = pitchedHeld_.exchange(0);
+    for (uint8_t p = 0; p < 16; ++p) {
+        if (held & (1u << p)) endPitched(pm, p);
+    }
+}
+// [/docs:flush]
 
 // [docs:press]
 void PlaySamplePadLogic::onPadPress(crosspad::PadManager& pm, uint8_t pad, uint8_t velocity)
@@ -49,16 +62,21 @@ void PlaySamplePadLogic::onPadPress(crosspad::PadManager& pm, uint8_t pad, uint8
 void PlaySamplePadLogic::onPadRelease(crosspad::PadManager& pm, uint8_t pad)
 {
     if (pad >= 16) return;
-    const uint16_t bit = static_cast<uint16_t>(1u << pad);
-    if (!(pitchedHeld_.fetch_and(static_cast<uint16_t>(~bit)) & bit)) {
-        if (auto* b = base_.load()) b->onPadRelease(pm, pad);   // a kit press: the kit releases it
+    // The loop's release always belongs to the kit, even while a finger holds
+    // this pad in Pitched mode: the manager stores a release's source before it
+    // calls us, so pressSource() says who let go.
+    if (pm.pressSource(pad) == crosspad::EventSource::SequencerCallback) {
+        if (auto* b = base_.load()) b->onPadRelease(pm, pad);
         return;
     }
-    // A pad in Hold mode plays until released; one-shot pads ignore the off.
-    crosspad::getEventBus().postSamplePlayback(kSourcePad, 0, /*isOn=*/false,
-                                               crosspad::EventSource::App, 127,
-                                               transposeFor(pad), keyFor(pad));
-    pm.notifyNoteOff(pad, /*fromSampler=*/true);
+    // A finger's release goes to whoever played that press: the held bit says
+    // whether it was ours (pitched) or the kit's, even if the mode changed since.
+    const uint16_t bit = static_cast<uint16_t>(1u << pad);
+    if (pitchedHeld_.fetch_and(static_cast<uint16_t>(~bit)) & bit) {
+        endPitched(pm, pad);
+    } else if (auto* b = base_.load()) {
+        b->onPadRelease(pm, pad);
+    }
 }
 // [/docs:press]
 
