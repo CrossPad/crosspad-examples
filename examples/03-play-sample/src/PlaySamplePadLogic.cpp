@@ -26,7 +26,7 @@ void PlaySamplePadLogic::onDeactivate(crosspad::PadManager& pm)
 // [docs:flush]
 // One place ends a pitched note: the release and the app closing both use it.
 // On the board only a pad in Hold mode stops on the off; a one-shot or a loop plays on.
-// (The simulator's engine also stops a looped sample.)
+// The simulator's engine stops only a looped sample on the off; a Hold pad plays on there.
 void PlaySamplePadLogic::endPitched(crosspad::PadManager& pm, uint8_t pad)
 {
     crosspad::getEventBus().postSamplePlayback(kSourcePad, /*wavIdx=*/0, /*isOn=*/false,
