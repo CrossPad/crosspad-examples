@@ -1,0 +1,17 @@
+{
+  "name": "Hello Screen",
+  "id": "example-hello-screen",
+  "version": "0.1.0",
+  "description": "The smallest complete CrossPad app: a button, a counter, a panel, and a way out.",
+  "category": "example",
+  "icon": "example-hello-screen.png",
+  "component_path": "components/crosspad-example-hello-screen",
+  "platforms": ["esp-idf", "pc"],
+  "requires": {
+    "crosspad-core": ">=1.53.0",
+    "crosspad-gui": ">=1.23.0"
+  },
+  "changelog": [
+    "0.1.0: first version"
+  ]
+}
