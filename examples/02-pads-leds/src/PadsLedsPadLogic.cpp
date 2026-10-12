@@ -20,6 +20,7 @@ void PadsLedsPadLogic::onActivate(crosspad::PadManager& pm)
         levels_[p].store(0);
         light(pm, p, example_pads::kRestLevel);
     }
+    lastPad_.store(-1);        // a new visit starts with no "last pad"
 }
 
 void PadsLedsPadLogic::onDeactivate(crosspad::PadManager& pm)

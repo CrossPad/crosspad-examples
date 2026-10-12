@@ -12,7 +12,6 @@
 #include "example-pads-leds/PadsModel.hpp"
 #include "crosspad/pad/PadManager.hpp"
 #include "crosspad/pad/PadAnimator.hpp"
-#include <cstdio>
 #include <memory>
 
 /*
@@ -28,7 +27,8 @@ lv_obj_t* s_cells[16] = {};      // one square per pad
 lv_obj_t* s_status = nullptr;    // "Pad N  level L"
 lv_timer_t* s_timer = nullptr;   // redraws the cells from the recorded levels
 lv_group_t* s_group = nullptr;   // what the encoder walks
-bool s_rainbow = false;          // a PadAnimator frame is showing
+lv_obj_t* s_rainbow_label = nullptr;   // "Rainbow" / "Stop"
+bool s_rainbow = false;          // this app started the PadAnimator frame
 // [/docs:state]
 
 // [docs:timer]
@@ -51,17 +51,28 @@ void tick(lv_timer_t*)
 // [docs:rainbow]
 // PadAnimator holds a whole frame until stop(): while it shows, pad presses
 // do not repaint the LEDs. Good for a moment, not for playing.
+// isActive() is the truth: stop only a frame this app started, and never
+// start over an animation that something else is playing.
 void on_rainbow(lv_event_t*)
 {
     auto& anim = crosspad::getPadAnimator();
-    s_rainbow = !s_rainbow;
-    if (!s_rainbow) { anim.stop(); return; }
+    if (s_rainbow && anim.isActive()) {
+        anim.stop();
+        s_rainbow = false;
+        lv_label_set_text(s_rainbow_label, "Rainbow");
+        return;
+    }
+    s_rainbow = false;
+    lv_label_set_text(s_rainbow_label, "Rainbow");
+    if (anim.isActive()) return;
     crosspad::RgbColor frame[crosspad::PadAnimator::kPadCount];
     for (uint8_t p = 0; p < 16; ++p) {
         const auto c = example_pads::wheel(p);
         frame[p] = crosspad::RgbColor(c.r, c.g, c.b);
     }
     anim.showFrame(frame);
+    s_rainbow = true;
+    lv_label_set_text(s_rainbow_label, "Stop");
 }
 // [/docs:rainbow]
 
@@ -74,6 +85,7 @@ lv_obj_t* PadsLeds_create(lv_obj_t* parent, App*)
     s_status = nullptr;
     s_timer = nullptr;
     s_group = nullptr;
+    s_rainbow_label = nullptr;
     s_rainbow = false;
 
     // [docs:register-logic]
@@ -116,8 +128,8 @@ lv_obj_t* PadsLeds_create(lv_obj_t* parent, App*)
     lv_obj_t* btn = lv_button_create(root);
     lv_obj_align(btn, LV_ALIGN_BOTTOM_RIGHT, 0, 0);
     lv_obj_add_event_cb(btn, on_rainbow, LV_EVENT_CLICKED, nullptr);
-    lv_obj_t* l = lv_label_create(btn);
-    lv_label_set_text(l, "Rainbow");
+    s_rainbow_label = lv_label_create(btn);
+    lv_label_set_text(s_rainbow_label, "Rainbow");
     if (s_group) lv_group_add_obj(s_group, btn);
 
     s_timer = lv_timer_create(tick, 33, nullptr);
@@ -127,7 +139,9 @@ lv_obj_t* PadsLeds_create(lv_obj_t* parent, App*)
 // [docs:destroy]
 void PadsLeds_destroy(lv_obj_t* root)
 {
-    if (s_rainbow) { crosspad::getPadAnimator().stop(); s_rainbow = false; }
+    if (s_rainbow && crosspad::getPadAnimator().isActive()) crosspad::getPadAnimator().stop();
+    s_rainbow = false;
+    s_rainbow_label = nullptr;
     lv_timer_delete(s_timer);
     s_timer = nullptr;
     if (s_group) { lv_group_delete_deferred(s_group); s_group = nullptr; }
