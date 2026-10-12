@@ -9,6 +9,7 @@
 #include "crosspad-gui/widgets/gui_helpers.h"
 #include "lvgl.h"
 #include "example-ui-kit/UiModel.hpp"
+// [docs:includes]
 #include "crosspad-gui/design/cp_design.h"
 #include "crosspad-gui/theme/crosspad_theme.h"
 #include "crosspad-gui/components/ui_toast.h"
@@ -17,6 +18,7 @@
 #include "crosspad/event/IEventBus.hpp"
 #include "crosspad/event/EventData.hpp"
 #include <atomic>
+// [/docs:includes]
 
 /*
  * UI Kit -- CrossPad's look, toasts, a confirm dialog, an overlay the power
@@ -127,6 +129,7 @@ lv_obj_t* add_button(lv_obj_t* parent, const char* text, lv_event_cb_t cb)
 
 } // namespace
 
+// [docs:create]
 lv_obj_t* UiKit_create(lv_obj_t* parent, App*)
 {
     // Every static starts clean on each visit.
@@ -148,6 +151,7 @@ lv_obj_t* UiKit_create(lv_obj_t* parent, App*)
     lv_obj_remove_flag(root, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_flex_flow(root, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(root, 8, 0);
+    // [/docs:create]
 
     // [docs:look]
     // The pixel face is ASCII only: text that comes from the card (kit and
@@ -166,6 +170,7 @@ lv_obj_t* UiKit_create(lv_obj_t* parent, App*)
     s_count = lv_label_create(root);
     lv_obj_set_style_text_color(s_count, CP_COL_NORMAL, 0);
     // [/docs:look]
+    // [docs:create-end]
     show_count();
 
     s_row = lv_obj_create(root);
@@ -189,6 +194,7 @@ lv_obj_t* UiKit_create(lv_obj_t* parent, App*)
     s_sub = crosspad::getEventBus().subscribe(crosspad::EventType::SamplePlayback,
                                               on_pad, nullptr);
     return root;
+    // [/docs:create-end]
 }
 
 // [docs:destroy]
