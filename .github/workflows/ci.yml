@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install pytest pillow
+      - run: python3 -m pytest tests/tools -q
+
+  host-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with: { repository: CrossPad/crosspad-core, path: _deps/crosspad-core, token: "${{ secrets.SDK_READ_TOKEN || github.token }}" }
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build
+      - run: cmake -S tests -B tests/build -G Ninja -DCROSSPAD_CORE_DIR=$PWD/_deps/crosspad-core
+      - run: cmake --build tests/build
+      - run: ctest --test-dir tests/build --output-on-failure
+
+  pc-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with: { repository: CrossPad/crosspad-pc, ref: master, path: _deps/crosspad-pc, submodules: recursive, token: "${{ secrets.SDK_READ_TOKEN || github.token }}" }
+      - run: sudo apt-get update && sudo apt-get install -y build-essential cmake ninja-build pkg-config libsdl2-dev libasound2-dev libpulse-dev libdbus-1-dev   # crosspad-pc README, "Linux"
+      - run: python3 tools/install.py --target pc _deps/crosspad-pc
+      - run: cmake -S _deps/crosspad-pc -B _deps/crosspad-pc/build -G Ninja -DCMAKE_BUILD_TYPE=Debug
+      - run: cmake --build _deps/crosspad-pc/build
+      - name: Every example is registered in the simulator
+        working-directory: _deps/crosspad-pc
+        run: |
+          # A throwaway HOME keeps the simulator off any real ~/.crosspad; the
+          # software renderer is what works without a display.
+          HOME=$(mktemp -d) SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy SDL_RENDER_DRIVER=software ./bin/CrossPad & pid=$!
+          rc=0
+          python3 "$GITHUB_WORKSPACE/tools/sim_apps.py" --timeout 60 > "$RUNNER_TEMP/apps.txt" || rc=$?
+          kill $pid || true
+          cat "$RUNNER_TEMP/apps.txt"; test $rc -eq 0
+          for n in $(grep -ho 'REGISTER_APP\(_PL\)\?( *[A-Za-z0-9_]*' "$GITHUB_WORKSPACE"/examples/*/src/*.cpp | sed 's/.*( *//'); do
+            grep -qx "$n" "$RUNNER_TEMP/apps.txt" || { echo "::error::$n is not registered"; exit 1; }
+          done
+
+  idf-build:
+    # Always a GitHub-hosted runner: the repo is public and this job runs on pull_request.
+    runs-on: ubuntu-latest
+    container: { image: "espressif/idf:v5.5.5" }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with: { repository: CrossPad/platform-idf, path: _deps/platform-idf, token: "${{ secrets.SDK_READ_TOKEN || github.token }}" }
+      - name: Only the submodules the examples image needs
+        working-directory: _deps/platform-idf
+        run: |
+          git config --global --add safe.directory '*'
+          git config --global http.version HTTP/1.1
+          git -c "http.extraheader=Authorization: basic $(printf 'x-access-token:%s' '${{ secrets.SDK_READ_TOKEN || github.token }}' | base64 -w0)" \
+            submodule update --init components/crosspad-core components/crosspad-gui components/crosspad-mixer components/crosspad-sampler
+      - run: python3 tools/install.py --target idf _deps/platform-idf
+      - name: Build v2
+        working-directory: _deps/platform-idf
+        shell: bash
+        run: |
+          . $IDF_PATH/export.sh
+          idf.py -B build_v2 -DSDKCONFIG=sdkconfig.v2 -DCROSSPAD_FW_KIT=examples build
+      - uses: actions/upload-artifact@v4
+        with: { name: examples-v2, path: "_deps/platform-idf/build_v2/*.bin" }
+
+  hil:
+    # Never on pull_request: a public repo on the bench's self-hosted runner would
+    # run anyone's code next to the board.
+    if: github.event_name != 'pull_request' && vars.CI_RUNNER == 'self-hosted'
+    needs: idf-build
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: examples-v2, path: fw }
+      - name: Churn every example on the bench, then put the release back
+        shell: bash
+        env: { GH_TOKEN: "${{ secrets.SDK_READ_TOKEN }}" }
+        run: tools/hil_churn.sh fw
