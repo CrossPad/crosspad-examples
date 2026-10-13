@@ -3,3 +3,4 @@ tests/build/
 __pycache__/
 .pytest_cache/
 _deps/
+hil_logs/

@@ -46,7 +46,15 @@ def main(argv=None) -> int:
         print(f"error: {a.root} has no {DEST[a.target]}/ -- is it a {a.target} checkout?", file=sys.stderr)
         return 2
 
-    for folder, app_id in examples(set(a.names)):
+    chosen = list(examples(set(a.names)))
+    known = {name for folder, app_id in chosen for name in (folder.name, app_id.removeprefix("example-"))}
+    unknown = [n for n in a.names if n not in known]
+    if unknown:
+        slugs = ", ".join(app_id.removeprefix("example-") for _, app_id in examples(set()))
+        print(f"error: no example named {', '.join(unknown)} (examples: {slugs})", file=sys.stderr)
+        return 2
+
+    for folder, app_id in chosen:
         dest = base / f"crosspad-{app_id}"
         if dest.exists() and not (dest / MARKER).exists():
             print(f"error: {dest} exists and was not installed by tools/install.py; move it first", file=sys.stderr)

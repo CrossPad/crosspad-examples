@@ -87,6 +87,12 @@ jobs:
   hil:
     # Never on pull_request: a public repo on the bench's self-hosted runner would
     # run anyone's code next to the board; workflow_dispatch from another branch must not reach it either.
+    # The `if:` below is not enough on its own: a fork's PR runs the workflow file from the PR,
+    # so a fork can drop this condition. Give this job the bench runner (vars.CI_RUNNER) only when
+    # (1) the repo requires approval before running workflows from outside contributors
+    # (Settings > Actions > "Require approval for all outside collaborators") and (2) the runner sits
+    # in a runner group that public repositories cannot use; otherwise run the hil job from a
+    # private repo that checks this one out.
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.CI_RUNNER == 'self-hosted'
     needs: idf-build
     runs-on: self-hosted

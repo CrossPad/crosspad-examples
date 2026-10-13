@@ -74,3 +74,13 @@ def test_unknown_target_root_is_an_error(tmp_path):
     r = subprocess.run([sys.executable, "tools/install.py", "--target", "idf", str(tmp_path / "nope")], cwd=repo, capture_output=True, text=True)
     assert r.returncode == 2
     assert "no components/" in r.stderr
+
+
+def test_unknown_name_is_an_error_and_installs_nothing(tmp_path):
+    repo, proj = fake_repo(tmp_path), tmp_path / "crosspad-pc"
+    (proj / "src" / "apps").mkdir(parents=True)
+    r = subprocess.run([sys.executable, "tools/install.py", "--target", "pc", str(proj), "pads-leds", "hello-scren"],
+                       cwd=repo, capture_output=True, text=True)
+    assert r.returncode == 2
+    assert "hello-scren" in r.stderr
+    assert list((proj / "src" / "apps").iterdir()) == []
