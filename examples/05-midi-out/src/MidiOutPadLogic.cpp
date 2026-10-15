@@ -44,10 +44,8 @@ void MidiOutPadLogic::onPadPress(crosspad::PadManager& pm, uint8_t pad, uint8_t 
     const uint8_t vel = velocity ? velocity : 1;   // velocity 0 would read as a Note Off
     // Pressed again without a release: end the old note first.
     if (held_.fetch_and(static_cast<uint16_t>(~bit)) & bit) endNote(pad);
-    // Record the note before sending it: that keeps the common case right. Pad
-    // callbacks run without a lock, so a press racing the app's close by
-    // microseconds can still leave one note on; a real app that must never do
-    // that also sends All Notes Off (CC 123) on close.
+    // Record the note before sending it, so the release and onDeactivate find it.
+    // A real app may also send All Notes Off (CC 123) on close.
     noteChannel_[pad].store(ch);   // the release goes here, even if the screen changed the channel
     held_.fetch_or(bit);
     crosspad::getMidiOutput().sendNoteOn(noteFor(pad), vel, ch);

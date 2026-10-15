@@ -65,9 +65,7 @@ void show_pad(void* p)
 }
 
 // On the event task: no LVGL here. Hand the pad over to the LVGL task.
-// These are the pads the Sampler plays (from a finger or a running sequence);
-// without the Sampler as the base pad logic no event arrives. PadPressed is not
-// used: it is posted only when no pad logic at all is active.
+// These are the pads the Sampler plays (from a finger or a running sequence).
 void on_pad(const void* data, crosspad::EventType, void*)
 {
     const auto* d = static_cast<const crosspad::SamplePlaybackData*>(data);

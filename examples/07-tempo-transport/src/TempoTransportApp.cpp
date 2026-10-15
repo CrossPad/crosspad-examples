@@ -90,7 +90,7 @@ void on_tap(lv_event_t*)
 }
 
 // Once per series of taps: a commit re-measures and saves an open song,
-// and the song refuses a commit while it is still saving the last one.
+// so the app commits once, when the taps stop.
 void commit_taps()
 {
     if (!s_commitPending) return;
