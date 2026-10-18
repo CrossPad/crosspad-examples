@@ -8,8 +8,8 @@
   "component_path": "components/crosspad-example-midi-out",
   "platforms": ["esp-idf", "pc"],
   "requires": {
-    "crosspad-core": ">=1.53.0",
-    "crosspad-gui": ">=1.23.0"
+    "crosspad-core": ">=1.70.0,<3.0.0",
+    "crosspad-gui": ">=1.28.0,<3.0.0"
   },
   "changelog": [
     "0.1.0: first version"

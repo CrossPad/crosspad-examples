@@ -21,6 +21,9 @@ def test_every_example_has_a_complete_manifest():
         assert m["component_path"] == f"components/crosspad-example-{slug}", f
         assert m["platforms"] == ["esp-idf", "pc"], f
         assert re.fullmatch(r"\d+\.\d+\.\d+", m["version"]), f
+        # Ranges, lower and upper bound: the code builds on core/gui 1.x and 2.x.
+        assert m["requires"] == {"crosspad-core": ">=1.70.0,<3.0.0",
+                                 "crosspad-gui": ">=1.28.0,<3.0.0"}, f
 
 
 def test_every_example_has_its_icon_its_component_and_a_test():
