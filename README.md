@@ -7,7 +7,9 @@ lines of C++), and each folder links the cookbook page that explains it:
 `https://crosspad.app/docs/apps/cookbook/<slug>/`.
 
 One source tree serves both targets: the ESP-IDF firmware and the desktop
-simulator.
+simulator. The examples build against crosspad-core 1.70 or later and
+crosspad-gui 1.28 or later, on both the 1.x and the 2.x line; where the two
+lines differ, the code says which is which with `CROSSPAD_CORE_VERSION_MAJOR`.
 
 ## The examples
 
@@ -95,7 +97,8 @@ set of apps.
 
 Host tests cover each example's model (plain C++ with Catch2, no board and no
 LVGL). They need a checkout of
-[crosspad-core](https://github.com/CrossPad/crosspad-core):
+[crosspad-core](https://github.com/CrossPad/crosspad-core), 1.70 or later, 1.x
+or 2.x:
 
 ```bash
 cmake -S tests -B tests/build -G Ninja -DCROSSPAD_CORE_DIR=<path to crosspad-core>
