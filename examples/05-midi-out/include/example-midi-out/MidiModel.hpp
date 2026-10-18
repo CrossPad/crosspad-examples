@@ -10,8 +10,9 @@ inline uint8_t noteFor(uint8_t pad) { return static_cast<uint8_t>(36 + (pad % 16
 /// Pressure becomes the mod wheel, CC 1.
 constexpr uint8_t kPressureCc = 1;
 
-/// The range onPadPan delivers: -64..63, centre 0 (the 1.x header says -127..127, but
-/// the firmware already sends this). 2.0's IPadLogicHandler names them kPanMin/kPanMax.
+/// The range onPadPan delivers: -64 (all of the press on the left) .. 63 (all on
+/// the right), centre 0. Core 2.x names the same values IPadLogicHandler::kPanMin
+/// and kPanMax; they are spelled out here so the model builds on core 1.x too.
 constexpr int8_t kPanMin = -64;
 constexpr int8_t kPanMax = 63;
 
