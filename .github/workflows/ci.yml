@@ -20,11 +20,15 @@ jobs:
 
   host-tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # The newest core, and 1.70.0: the lowest the manifests' requires allow.
+        core-ref: [main, 1a5350794dc1b4dd376531a50fd5a63526d5a5b1]
     steps:
       - uses: actions/checkout@v4
         with: { persist-credentials: false }
       - uses: actions/checkout@v4
-        with: { repository: CrossPad/crosspad-core, path: _deps/crosspad-core, persist-credentials: false, token: "${{ secrets.SDK_READ_TOKEN || github.token }}" }
+        with: { repository: CrossPad/crosspad-core, ref: "${{ matrix.core-ref }}", path: _deps/crosspad-core, persist-credentials: false, token: "${{ secrets.SDK_READ_TOKEN || github.token }}" }
       - run: sudo apt-get update && sudo apt-get install -y ninja-build
       - run: cmake -S tests -B tests/build -G Ninja -DCROSSPAD_CORE_DIR=$PWD/_deps/crosspad-core
       - run: cmake --build tests/build

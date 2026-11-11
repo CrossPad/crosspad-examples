@@ -12,6 +12,7 @@
 #include "example-pads-leds/PadsModel.hpp"
 #include "crosspad/pad/PadManager.hpp"
 #include "crosspad/pad/PadAnimator.hpp"
+#include "crosspad/CrosspadCoreVersion.hpp"
 #include <memory>
 
 /*
@@ -28,7 +29,6 @@ lv_obj_t* s_status = nullptr;    // "Pad N  level L"
 lv_timer_t* s_timer = nullptr;   // redraws the cells from the recorded levels
 lv_group_t* s_group = nullptr;   // what the encoder walks
 lv_obj_t* s_rainbow_label = nullptr;   // "Rainbow" / "Stop"
-bool s_rainbow = false;          // this app started the PadAnimator frame
 // [/docs:state]
 
 // [docs:timer]
@@ -49,29 +49,59 @@ void tick(lv_timer_t*)
 // [/docs:timer]
 
 // [docs:rainbow]
-// PadAnimator holds a whole frame until stop(): while it shows, pad presses
-// do not repaint the LEDs. Good for a moment, not for playing.
+// PadAnimator holds a whole frame until it is stopped: while it shows, pad
+// presses do not repaint the LEDs. Good for a moment, not for playing.
 // The rainbow starts only while isActive() is false, so it never paints over
 // an animation of the board's own.
+#if CROSSPAD_CORE_VERSION_MAJOR >= 2
+// showFrame() returns a token naming this frame: owns() and stop() with it
+// reach only this app's frame, never an animation that took the pads since.
+crosspad::PadAnimator::AnimToken s_rainbow = crosspad::PadAnimator::kNoAnim;
+
+bool rainbow_shows() { return crosspad::getPadAnimator().owns(s_rainbow); }
+
+void rainbow_show(const crosspad::RgbColor (&frame)[crosspad::PadAnimator::kPadCount])
+{
+    s_rainbow = crosspad::getPadAnimator().showFrame(frame);
+}
+
+void rainbow_stop()
+{
+    crosspad::getPadAnimator().stop(s_rainbow);   // does nothing once the frame is gone
+    s_rainbow = crosspad::PadAnimator::kNoAnim;
+}
+#else
+// Core 1.x: the app remembers that it started the frame, and stop() ends
+// whatever animation runs.
+bool s_rainbow = false;
+
+bool rainbow_shows() { return s_rainbow && crosspad::getPadAnimator().isActive(); }
+
+void rainbow_show(const crosspad::RgbColor (&frame)[crosspad::PadAnimator::kPadCount])
+{
+    crosspad::getPadAnimator().showFrame(frame);
+    s_rainbow = true;
+}
+
+void rainbow_stop()
+{
+    if (rainbow_shows()) crosspad::getPadAnimator().stop();
+    s_rainbow = false;
+}
+#endif
+
 void on_rainbow(lv_event_t*)
 {
-    auto& anim = crosspad::getPadAnimator();
-    if (s_rainbow && anim.isActive()) {
-        anim.stop();
-        s_rainbow = false;
-        lv_label_set_text(s_rainbow_label, "Rainbow");
-        return;
-    }
-    s_rainbow = false;
+    const bool wasShowing = rainbow_shows();
+    rainbow_stop();
     lv_label_set_text(s_rainbow_label, "Rainbow");
-    if (anim.isActive()) return;
+    if (wasShowing || crosspad::getPadAnimator().isActive()) return;
     crosspad::RgbColor frame[crosspad::PadAnimator::kPadCount];
     for (uint8_t p = 0; p < 16; ++p) {
         const auto c = example_pads::wheel(p);
         frame[p] = crosspad::RgbColor(c.r, c.g, c.b);
     }
-    anim.showFrame(frame);
-    s_rainbow = true;
+    rainbow_show(frame);
     lv_label_set_text(s_rainbow_label, "Stop");
 }
 // [/docs:rainbow]
@@ -86,7 +116,7 @@ lv_obj_t* PadsLeds_create(lv_obj_t* parent, App*)
     s_timer = nullptr;
     s_group = nullptr;
     s_rainbow_label = nullptr;
-    s_rainbow = false;
+    s_rainbow = {};   // no frame of ours
 
     // [docs:register-logic]
     // Registered once and kept: REGISTER_APP_PL below makes the framework
@@ -142,8 +172,7 @@ lv_obj_t* PadsLeds_create(lv_obj_t* parent, App*)
 void PadsLeds_destroy(lv_obj_t* root)
 {
     // root is null when the app's screen was already wiped: free what is ours, delete nothing.
-    if (s_rainbow && crosspad::getPadAnimator().isActive()) crosspad::getPadAnimator().stop();
-    s_rainbow = false;
+    rainbow_stop();
     s_rainbow_label = nullptr;
     lv_timer_delete(s_timer);
     s_timer = nullptr;
